@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Pressable,
     useWindowDimensions,
+    Alert
 } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,28 +35,52 @@ export function VideoSelectModal({
     const { height } = useWindowDimensions();
 
     const handlePickVideo = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-            allowsEditing: true,
-            quality: 1,
-        });
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('İzin Gerekli', 'Galeriye erişim izni verilmedi.');
+                return;
+            }
 
-        if (!result.canceled && result.assets[0]) {
-            onVideoSelect(result.assets[0].uri);
-            onClose();
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsEditing: true,
+                quality: 1,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                console.log('Galeri videosunu VideoCutScreen\'e iletiyorum:', result.assets[0].uri);
+                onVideoSelect(result.assets[0].uri);
+                onClose();
+            }
+        } catch (error) {
+            console.error('Galeri video seçme hatası:', error);
+            Alert.alert('Hata', 'Video seçilirken bir sorun oluştu.');
         }
     };
 
     const handleRecordVideo = async () => {
-        const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-            allowsEditing: true,
-            quality: 1,
-        });
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('İzin Gerekli', 'Kamera erişim izni verilmedi.');
+                return;
+            }
 
-        if (!result.canceled && result.assets[0]) {
-            onVideoSelect(result.assets[0].uri);
-            onClose();
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsEditing: true,
+                quality: 1,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                console.log('Kamera videosunu VideoCutScreen\'e iletiyorum:', result.assets[0].uri);
+                onVideoSelect(result.assets[0].uri);
+                onClose();
+            }
+        } catch (error) {
+            console.error('Kamera video çekme hatası:', error);
+            Alert.alert('Hata', 'Video çekilirken bir sorun oluştu.');
         }
     };
 
@@ -90,7 +115,7 @@ export function VideoSelectModal({
                         <Ionicons
                             name="images-outline"
                             size={24}
-                            color={'#000000'}
+                            color={colors.text.primary}
                         />
                         <Text style={[styles.optionText, { color: colors.text.primary }]}>
                             Galeriden Seç
@@ -103,7 +128,7 @@ export function VideoSelectModal({
                         <Ionicons
                             name="camera-outline"
                             size={24}
-                            color={'#000000'}
+                            color={colors.text.primary}
                         />
                         <Text style={[styles.optionText, { color: colors.text.primary }]}>
                             Video Çek

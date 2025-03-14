@@ -5,7 +5,6 @@ import { RootStackParamList } from '../types';
 import { VideoListScreen } from '../../screens/home/VideoListScreen';
 import { VideoCutScreen } from '../../screens/home/VideoCutScreen';
 import { VideoPlayerScreen } from '../../screens/video/VideoPlayerScreen';
-import { VideoCropperScreen } from '../../screens/video/VideoCropperScreen';
 import { MetadataFormScreen } from '../../screens/video/MetadataFormScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -23,10 +22,7 @@ export function HomeStack() {
             }}
         >
             <Stack.Screen name="VideoList" component={VideoListScreen} />
-            <Stack.Screen name="VideoCut" component={VideoCutScreen} />
             <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
-            <Stack.Screen name="VideoCropper" component={VideoCropperScreen} />
-            <Stack.Screen name="MetadataForm" component={MetadataFormScreen} />
         </Stack.Navigator>
     );
 } 
