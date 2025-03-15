@@ -16,6 +16,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CutStackParamList } from '../../navigation/stacks/CutStack';
+import * as FileSystem from 'expo-file-system';
+import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
 
 type VideoCutScreenProps = NativeStackScreenProps<CutStackParamList, 'VideoCut'>;
 
@@ -157,7 +159,7 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
               console.log('Error pausing video on start gesture:', e);
             }
           }, 10);
-        } catch (e) {}
+        } catch (e) { }
       }
     })
     .onUpdate((e) => {
@@ -183,7 +185,7 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
             console.log('Error in start gesture onFinalize setPosition:', e);
           }
         }, 50);
-      } catch (e) {}
+      } catch (e) { }
     });
 
   const endGesture = Gesture.Pan()
@@ -198,7 +200,7 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
               console.log('Error pausing video on end gesture start:', e);
             }
           }, 10);
-        } catch (e) {}
+        } catch (e) { }
       }
     })
     .onUpdate((e) => {
@@ -254,49 +256,60 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
     }
   };
 
+  const { trimVideo, isTrimming } = useVideoProcessing();
+
   // Trim işlemi
-  const handleTrimVideo = async () => {
-    if (!selectedVideoUri) return;
-    try {
+const handleTrimVideo = async () => {
+  if (!selectedVideoUri) return;
+  try {
       const startTimeVal = (startPosition.value / SCRUBBER_WIDTH) * duration;
       const endTimeVal = (endPosition.value / SCRUBBER_WIDTH) * duration;
-      const newUri = await fakeTrimVideo(selectedVideoUri, startTimeVal, endTimeVal);
+      const trimDuration = endTimeVal - startTimeVal;
 
-      setSelectedVideoUri(newUri);
-      const trimmedDuration = endTimeVal - startTimeVal;
-      setDuration(trimmedDuration);
-      setStartTimeState(0);
-      setEndTimeState(trimmedDuration);
-      setCurrentTime(0);
+      // Video kırpma işlemini başlat
+      const processedUri = await trimVideo({
+          sourceUri: selectedVideoUri,
+          startTime: startTimeVal,
+          duration: trimDuration
+      });
+
+      // Kırpılan videoyu göster ve durumu güncelle
+      setSelectedVideoUri(processedUri);
+      setDuration(trimDuration);  // Burada, videonun yeni süresini güncelliyoruz.
+
+      // Scrubber'ı sıfırla
       startPosition.value = 0;
       endPosition.value = SCRUBBER_WIDTH;
-      setLastPlayPosition(0);
-      setIsPlaying(false);
-      Alert.alert(
-        "Başarılı",
-        "Video seçilen aralığa göre kırpıldı!",
-        [
-          {
-            text: "Tamam",
-            style: "default",
-          },
-        ],
-        { cancelable: true }
-      );
-    } catch (e) {
-      console.log('Error in handleTrimVideo:', e);
-      Alert.alert('Hata', 'Video kırpılırken bir sorun oluştu.');
-    }
-  };
+      setStartTimeState(0);
+      setEndTimeState(trimDuration);  // Yeni duration değeri ile güncelliyoruz.
+
+      Alert.alert('Başarılı', 'Video seçilen aralığa göre kırpıldı');
+  } catch (e) {
+      console.error('handleTrimVideo hatası:', e);
+      Alert.alert('Hata', 'Video kırpılırken bir sorun oluştu');
+  }
+};
+
 
   // Günlüğüne kaydet
   const handleSaveToJournal = () => {
-    if (!selectedVideoUri) return;
+    if (!selectedVideoUri) {
+      Alert.alert('Hata', 'Lütfen bir video seçin');
+      return;
+    }
+
     navigation.navigate('MetadataForm', {
       videoUri: selectedVideoUri,
-      startTime: startTimeState,
-      endTime: endTimeState,
+      startTime: 0,
+      duration: duration
     });
+
+    // Video seçim ve kırpma ekranlarını temizle
+    setSelectedVideoUri(null);
+    startPosition.value = 0;
+    endPosition.value = SCRUBBER_WIDTH;
+    setStartTimeState(0);
+    setEndTimeState(0);
   };
 
   const onScrubberLayout = () => {

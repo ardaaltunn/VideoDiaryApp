@@ -1,8 +1,26 @@
-import { VideoItem } from '../components/home/VideoList';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type RootStackParamList = {
     VideoList: undefined;
-    VideoPlayer: { video: VideoItem };
-    MetadataForm: { videoUri: string; startTime: number; endTime: number };
-    VideoCut: { uri?: string };
-}; 
+    VideoPlayer: {
+        id: string;
+        uri: string;
+        title: string;
+        description: string;
+    };
+    VideoCut: {
+        uri: string;
+    };
+    MetadataForm: {
+        videoUri: string;
+        startTime: number;
+        duration: number;
+    };
+};
+
+export type RootStackScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<
+    RootStackParamList,
+    T
+>;
+
+export type VideoPlayerScreenProps = RootStackScreenProps<'VideoPlayer'>; 

@@ -6,7 +6,11 @@ import { MetadataFormScreen } from '../../screens/video/MetadataFormScreen';
 
 export type CutStackParamList = {
   VideoCut: { uri?: string } | undefined;
-  MetadataForm: { videoUri: string; startTime: number; endTime: number };
+  MetadataForm: {
+    videoUri: string;
+    startTime: number;
+    duration: number;
+  };
 };
 
 const Stack = createNativeStackNavigator<CutStackParamList>();

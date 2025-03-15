@@ -4,48 +4,57 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CutStackParamList } from '../../navigation/stacks/CutStack';
 import { CommonActions } from '@react-navigation/native';
 import { Alert } from 'react-native';
+import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
+import { VideoProcessOptions } from '../../app/backend/types/video.types';
 
 type MetadataFormScreenProps = NativeStackScreenProps<CutStackParamList, 'MetadataForm'>;
 
 export function MetadataFormScreen({ route, navigation }: MetadataFormScreenProps) {
-    const handleSubmit = async (data: any) => {
+    const { saveVideo, isSaving } = useVideoProcessing();
+
+    const handleSubmit = async (data: { title: string; description: string; thumbnailUri: string }) => {
         try {
-            // Burada FFMPEG ile video işlemesi ve metadata kaydetme yapılır
-            console.log("Form submit edildi:", data);
-
-            // Önce basit yönlendirme deneyelim
-            const parent = navigation.getParent();
-            console.log("Parent navigator:", parent?.getId());
-
-            if (parent) {
-                // Sadece ana sayfaya gitmeyi deneyelim
-                console.log("HomeTab'e yönlendiriliyor");
-                parent.navigate('HomeTab');
-
-                // Alternatif olarak birkaç farklı yöntemi de deneyelim
-                setTimeout(() => {
-                    console.log("Alternatif yönlendirme deneniyor...");
-                    try {
-                        // 1. Doğrudan ana sayfaya gitmeyi dene
-                        parent.reset({
-                            index: 0,
-                            routes: [{ name: 'HomeTab' }]
-                        });
-                    } catch (e) {
-                        console.error("Reset hatası:", e);
-                    }
-                }, 500);
-            } else {
-                console.log("Parent navigator bulunamadı");
-                // Geçerli navigation ile deneme yap
-                navigation.popToTop();
-                Alert.alert("Bilgi", "Ana sayfaya yönlendiriliyorsunuz");
+            if (!route.params) {
+                throw new Error('Route parametreleri eksik');
             }
+
+            const { videoUri, duration } = route.params;
+
+            if (!videoUri) {
+                throw new Error('Video URI eksik');
+            }
+
+            if (!data.thumbnailUri) {
+                throw new Error('Lütfen bir kapak fotoğrafı seçin');
+            }
+
+            const options: VideoProcessOptions = {
+                title: data.title,
+                description: data.description,
+                startTime: 0,
+                duration: duration, // Güncel, trim edilmiş süreyide burada kullanıyoruz.
+                thumbnailUri: data.thumbnailUri
+            };
+
+            await saveVideo({
+                sourceUri: videoUri,
+                options
+            });
+
+            // Tüm stack'i temizle ve ana sayfaya dön
+            navigation.dispatch(
+                CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'HomeTab' }]
+                })
+            );
+
+            Alert.alert('Başarılı', 'Video başarıyla kaydedildi');
         } catch (error) {
-            console.error("Navigation hatası:", error);
-            Alert.alert("Hata", "Yönlendirme sırasında bir hata oluştu");
+            console.error('Video kaydetme hatası:', error);
+            Alert.alert('Hata', error instanceof Error ? error.message : 'Video kaydedilirken bir hata oluştu');
         }
     };
 
-    return <MetadataForm onSubmit={handleSubmit} />;
-} 
+    return <MetadataForm onSubmit={handleSubmit} isProcessing={isSaving} />;
+}

@@ -3,6 +3,31 @@
   "compilerOptions": {
     "strict": true,
     "skipLibCheck": true,
-    "noImplicitAny": false
-  }
+    "noImplicitAny": false,
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": [
+        "app/*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@screens/*": [
+        "screens/*"
+      ],
+      "@navigation/*": [
+        "navigation/*"
+      ],
+      "@theme/*": [
+        "theme/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

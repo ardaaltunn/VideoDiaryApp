@@ -5,21 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d8563214-1166-430a-91e3-33d52805bd96" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/other.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/other.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/home/components/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/home/components/Header.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/index.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/home/VideoList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/home/VideoList.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/components/video/MetadataForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/MetadataForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/video/VideoCropper.tsx" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/components/video/VideoPlayer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/VideoPlayer.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/video/VideoSelectModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/VideoSelectModal.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/components/video/components/VideoAppBar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/components/VideoAppBar.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigation/TabNavigator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/navigation/TabNavigator.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigation/stacks/HomeStack.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/navigation/stacks/HomeStack.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/navigation/stacks/CutStack.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/navigation/stacks/CutStack.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/navigation/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/navigation/types.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screens/home/VideoCutScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/home/VideoCutScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/screens/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/home/VideoListScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/home/VideoListScreen.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screens/video/MetadataFormScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/video/MetadataFormScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/video/VideoCropperScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/video/VideoPlayerScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/video/VideoPlayerScreen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

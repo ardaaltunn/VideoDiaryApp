@@ -38,10 +38,11 @@ const metadataSchema = z.object({
 type MetadataFormData = z.infer<typeof metadataSchema>;
 
 interface MetadataFormProps {
-  onSubmit: (data: MetadataFormData) => void;
+  onSubmit: (data: MetadataFormData & { thumbnailUri: string }) => void;
+  isProcessing?: boolean;
 }
 
-export function MetadataForm({ onSubmit }: MetadataFormProps) {
+export function MetadataForm({ onSubmit, isProcessing }: MetadataFormProps) {
   const { colors } = useTheme();
 
   const {
@@ -61,6 +62,10 @@ export function MetadataForm({ onSubmit }: MetadataFormProps) {
 
   const handlePhotoSelect = (uri: string) => {
     setThumbnailUri(uri);
+  };
+
+  const handleFormSubmit = (data: MetadataFormData) => {
+    onSubmit({ ...data, thumbnailUri: thumbnailUri || '' });
   };
 
   return (
@@ -100,70 +105,74 @@ export function MetadataForm({ onSubmit }: MetadataFormProps) {
               )}
             </Pressable>
 
-            <View style={{ width: '100%', marginTop: 24 }}>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.label, { color: colors.text.secondary }]}>Başlık</Text>
-                <Controller
-                  control={control}
-                  name="title"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={[
-                        styles.input,
-                        {
-                          backgroundColor: colors.background.secondary,
-                          color: colors.text.primary,
-                          borderColor: errors.title ? '#ef4444' : colors.border.light,
-                        },
-                      ]}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Video başlığını girin"
-                      placeholderTextColor={colors.text.tertiary}
-                    />
-                  )}
-                />
-                {errors.title && <Text style={styles.errorText}>{errors.title.message}</Text>}
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={[styles.label, { color: colors.text.secondary }]}>Açıklama</Text>
-                <Controller
-                  control={control}
-                  name="description"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={[
-                        styles.input,
-                        styles.textArea,
-                        {
-                          backgroundColor: colors.background.secondary,
-                          color: colors.text.primary,
-                          borderColor: errors.description ? '#ef4444' : colors.border.light,
-                        },
-                      ]}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Video açıklamasını girin"
-                      placeholderTextColor={colors.text.tertiary}
-                      multiline
-                      numberOfLines={4}
-                      textAlignVertical="top"
-                    />
-                  )}
-                />
-                {errors.description && (
-                  <Text style={styles.errorText}>{errors.description.message}</Text>
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text.secondary }]}>Başlık</Text>
+              <Controller
+                control={control}
+                name="title"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: colors.background.secondary,
+                        color: colors.text.primary,
+                        borderColor: errors.title ? '#ef4444' : colors.border.light,
+                      },
+                    ]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Video başlığını girin"
+                    placeholderTextColor={colors.text.tertiary}
+                  />
                 )}
-              </View>
-
-              <Pressable
-                style={[styles.submitButton, { backgroundColor: '#000' }]}
-                onPress={handleSubmit(onSubmit)}
-              >
-                <Text style={styles.submitButtonText}>Kaydet</Text>
-              </Pressable>
+              />
+              {errors.title && <Text style={styles.errorText}>{errors.title.message}</Text>}
             </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text.secondary }]}>Açıklama</Text>
+              <Controller
+                control={control}
+                name="description"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      {
+                        backgroundColor: colors.background.secondary,
+                        color: colors.text.primary,
+                        borderColor: errors.description ? '#ef4444' : colors.border.light,
+                      },
+                    ]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Video açıklamasını girin"
+                    placeholderTextColor={colors.text.tertiary}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                )}
+              />
+              {errors.description && (
+                <Text style={styles.errorText}>{errors.description.message}</Text>
+              )}
+            </View>
+
+            <Pressable
+              style={[
+                styles.submitButton,
+                { backgroundColor: isProcessing ? '#666' : '#000' }
+              ]}
+              onPress={handleSubmit(handleFormSubmit)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.submitButtonText}>
+                {isProcessing ? 'İşleniyor...' : 'Kaydet'}
+              </Text>
+            </Pressable>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>

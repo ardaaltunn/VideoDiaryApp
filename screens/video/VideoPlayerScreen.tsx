@@ -1,19 +1,38 @@
-import React from 'react';
-import { VideoPlayer } from '../../components/video/VideoPlayer';
+import React, { useEffect } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
+import { VideoPlayer } from '../../components/video/VideoPlayer';
 
 type VideoPlayerScreenProps = NativeStackScreenProps<RootStackParamList, 'VideoPlayer'>;
 
 export function VideoPlayerScreen({ route, navigation }: VideoPlayerScreenProps) {
-    const { video } = route.params;
+  const { id, uri, title, description } = route.params;
 
-    return (
-        <VideoPlayer
-            uri={video.uri}
-            title={video.title}
-            description={video.description}
-            onBack={() => navigation.goBack()}
-        />
-    );
-} 
+  // Ekran açıldığında tabBar'ı gizle, ekrandan çıkarken geri getir
+  useEffect(() => {
+    // TabNavigator'ın navigation objesine erişiyoruz
+    const parent = navigation.getParent();
+
+    // Tab bar'ı gizle
+    parent?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    // Cleanup: Ekrandan çıkarken tab bar'ı geri getir
+    return () => {
+      parent?.setOptions({
+        tabBarStyle: undefined,
+      });
+    };
+  }, [navigation]);
+
+  return (
+    <VideoPlayer
+      id={id}
+      uri={uri}
+      title={title}
+      description={description}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}

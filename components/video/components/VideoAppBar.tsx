@@ -7,9 +7,10 @@ interface VideoAppBarProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
+  onEdit?: () => void;
 }
 
-export function VideoAppBar({ title, subtitle, onBack }: VideoAppBarProps) {
+export function VideoAppBar({ title, subtitle, onBack, onEdit }: VideoAppBarProps) {
   const { colors } = useTheme();
 
   return (
@@ -21,19 +22,23 @@ export function VideoAppBar({ title, subtitle, onBack }: VideoAppBarProps) {
         <Text style={[styles.appBarTitle, { color: colors.text.primary }]} numberOfLines={1}>
           {title}
         </Text>
+        {onEdit && (
+          <Pressable onPress={onEdit} style={styles.editButton}>
+            <Ionicons name="create-outline" size={24} color={colors.text.primary} />
+          </Pressable>
+        )}
       </View>
-
-      </View>
+      {subtitle && (
+        <Text style={[styles.appBarSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  appBarContainer: {
-    // AppBar height
-    paddingTop: 8,
-    paddingBottom: 8,
-    // backgroundColor set by parent
-  },
+  appBarContainer: {},
   appBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -52,6 +57,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     flex: 1,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   appBarSubtitle: {
     fontSize: 14,
