@@ -7,6 +7,8 @@ export type RootStackParamList = {
         uri: string;
         title: string;
         description: string;
+        duration: number;
+        date?: string;
     };
     VideoCut: {
         uri: string;

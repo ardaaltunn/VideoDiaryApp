@@ -106,7 +106,7 @@ export function MetadataForm({ onSubmit, isProcessing }: MetadataFormProps) {
             </Pressable>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Başlık</Text>
+              <Text style={[styles.label, { color: colors.text.secondary, paddingTop: 16 }]}>Başlık</Text>
               <Controller
                 control={control}
                 name="title"

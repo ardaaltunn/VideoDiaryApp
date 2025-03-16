@@ -1,5 +1,3 @@
-// components/home/VideoList.tsx
-
 import React from 'react';
 import {
   View,
@@ -61,16 +59,18 @@ export const VideoList: React.FC<VideoListProps> = ({ videos, onVideoPress }) =>
   };
 
   const handleVideoPress = (video: VideoItem) => {
-    console.log('Handling video press:', video);
     if (!video.uri) {
       console.error('Video URI is missing!');
       return;
     }
+    // Tarih bilgisini de navigation parametrelerine ekliyoruz.
     navigation.navigate('VideoPlayer', {
       id: video.id,
       uri: video.uri,
       title: video.title || 'Untitled',
       description: video.description || 'No description',
+      duration: video.duration,
+      date: new Date(video.createdAt).toLocaleDateString(),
     });
   };
 
@@ -79,7 +79,6 @@ export const VideoList: React.FC<VideoListProps> = ({ videos, onVideoPress }) =>
       await deleteVideo(id);
     } catch (error) {
       console.error('Silme hatası:', error);
-      // İsteğe bağlı: Alert ile hata mesajı gösterebilirsiniz.
     }
   };
 
@@ -134,7 +133,7 @@ export const VideoList: React.FC<VideoListProps> = ({ videos, onVideoPress }) =>
             <View style={styles.metaItem}>
               <Ionicons name="calendar-outline" size={14} color={colors.text.tertiary} />
               <Text style={[styles.meta, { color: colors.text.tertiary }]}>
-                {new Date(item.createdAt).toLocaleDateString()}
+                {new Date(item.createdAt).toLocaleDateString('tr-TR')}
               </Text>
             </View>
             <Pressable onPress={() => handleDeletePress(item.id)}>

@@ -4,12 +4,15 @@ import { useVideoStore } from '../backend/store/video.store';
 import { VideoProcessOptions } from '../backend/types/video.types';
 import * as FileSystem from 'expo-file-system';
 import { videoDb } from '../backend/db/database';
+import { useRef } from 'react';
 
 const API_URL = 'http://192.168.1.108:3000'; // Geliştirme ortamı için
 
 export function useVideoProcessing() {
   const queryClient = useQueryClient();
   const { setProcessing, addVideo, videos, setVideos } = useVideoStore();
+  // Trim işlemi için AbortController referansı
+  const trimAbortController = useRef<AbortController | null>(null);
 
   // Tüm videoları getir
   const videosQuery = useQuery({
@@ -17,7 +20,7 @@ export function useVideoProcessing() {
     queryFn: VideoService.getAllVideos,
   });
 
-  // Video kırpma mutation'ı (önceki haliyle)
+  // Video kırpma mutation'ı (iptal desteği eklendi)
   const trimVideoMutation = useMutation({
     mutationFn: async ({
       sourceUri,
@@ -29,6 +32,9 @@ export function useVideoProcessing() {
       duration: number;
     }): Promise<string> => {
       setProcessing(true);
+      // Yeni AbortController oluştur ve ref'e ata
+      const controller = new AbortController();
+      trimAbortController.current = controller;
       try {
         // Video dosyasını sunucuya yükle
         const formData = new FormData();
@@ -44,6 +50,7 @@ export function useVideoProcessing() {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
+          signal: controller.signal,
         });
 
         if (!uploadResponse.ok) {
@@ -63,6 +70,7 @@ export function useVideoProcessing() {
             startTime,
             duration,
           }),
+          signal: controller.signal,
         });
 
         if (!trimResponse.ok) {
@@ -79,13 +87,19 @@ export function useVideoProcessing() {
         );
 
         return processedVideoPath;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw new Error('Trim işlemi iptal edildi');
+        }
+        throw error;
       } finally {
         setProcessing(false);
+        trimAbortController.current = null; // Controller’ı temizle
       }
     },
   });
 
-  // Video kaydetme mutation'ı (önceki haliyle)
+  // Video kaydetme mutation'ı (önceki hali)
   const saveVideoMutation = useMutation({
     mutationFn: async ({
       sourceUri,
@@ -108,7 +122,7 @@ export function useVideoProcessing() {
     },
   });
 
-  // Video silme mutation'ı
+  // Video silme mutation'ı (önceki hali)
   const deleteVideoMutation = useMutation({
     mutationFn: async (id: string): Promise<void> => {
       setProcessing(true);
@@ -124,7 +138,7 @@ export function useVideoProcessing() {
     },
   });
 
-  // Yeni: Video düzenleme (update) mutation'ı
+  // Video düzenleme (update) mutation'ı (önceki hali)
   const editVideoMutation = useMutation({
     mutationFn: async ({
       id,
@@ -152,11 +166,19 @@ export function useVideoProcessing() {
     },
   });
 
+  // Cancel trim fonksiyonu: Eğer trim işlemi devam ediyorsa, AbortController ile iptal ediyoruz
+  const cancelTrim = () => {
+    if (trimAbortController.current) {
+      trimAbortController.current.abort();
+    }
+  };
+
   return {
     videos: videosQuery.data || [],
     isLoading: videosQuery.isLoading,
     trimVideo: trimVideoMutation.mutateAsync,
     isTrimming: trimVideoMutation.status === 'pending',
+    cancelTrim,
     saveVideo: saveVideoMutation.mutate,
     isSaving: saveVideoMutation.status === 'pending',
     deleteVideo: deleteVideoMutation.mutateAsync,

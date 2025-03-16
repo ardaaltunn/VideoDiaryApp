@@ -5,19 +5,14 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { VideoSelectModal } from '../../components/video/VideoSelectModal';
 import { Header } from '../../components/home/components';
-import Animated, {
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { Video, ResizeMode, AVPlaybackStatus, AVPlaybackStatusSuccess } from 'expo-av';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CutStackParamList } from '../../navigation/stacks/CutStack';
-import * as FileSystem from 'expo-file-system';
 import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
+import { ProcessingModal } from '../../components/shared/ProcessingModal';
 
 type VideoCutScreenProps = NativeStackScreenProps<CutStackParamList, 'VideoCut'>;
 
@@ -26,7 +21,7 @@ const BOX_WIDTH = width * 0.8;
 const SCRUBBER_WIDTH = BOX_WIDTH;
 const HANDLE_WIDTH = 20;
 
-// Örnek trim fonksiyonu (gerçek projede video işleme kütüphanesi entegre edebilirsiniz)
+// Örnek trim fonksiyonu (kullanılmıyorsa silebilirsiniz)
 async function fakeTrimVideo(
   originalUri: string,
   startTime: number,
@@ -59,15 +54,14 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(
     route.params?.uri || null
   );
-
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [ended, setEnded] = useState(false); // Video bitti mi?
 
   // Video ref (callback ref ile)
   const videoRef = useRef<Video | null>(null);
   const setVideoCallbackRef = (instance: Video | null) => {
-    // Ref'e doğrudan atamak yerine callback ile atıyoruz.
     videoRef.current = instance;
   };
 
@@ -83,12 +77,25 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   const startPosition = useSharedValue(0);
   const endPosition = useSharedValue(SCRUBBER_WIDTH);
 
+  // useVideoProcessing hook
+  const { trimVideo, isTrimming, cancelTrim } = useVideoProcessing();
+
   // Route üzerinden gelen video URI
   useEffect(() => {
     if (route.params?.uri) {
       setSelectedVideoUri(route.params.uri);
     }
   }, [route.params?.uri]);
+
+  useEffect(() => {
+    if (selectedVideoUri) {
+      setCurrentTime(0);
+      setEnded(false);
+      startPosition.value = 0;
+      endPosition.value = SCRUBBER_WIDTH;
+      videoRef.current?.setPositionAsync(0);
+    }
+  }, [selectedVideoUri]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -116,6 +123,9 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         startPosition.value = 0;
         endPosition.value = SCRUBBER_WIDTH;
       }
+      // Trim sonrası baştan başlat
+      setCurrentTime(0);
+      videoRef.current?.setPositionAsync(0);
     } catch (e) {
       console.log('Error in handleVideoLoad:', e);
     }
@@ -124,42 +134,43 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     try {
-      setCurrentTime(status.positionMillis / 1000);
+      const newTime = status.positionMillis / 1000;
       if (status.isPlaying) {
-        setLastPlayPosition(status.positionMillis / 1000);
-      }
-      const currentEndTime = (endPosition.value / SCRUBBER_WIDTH) * duration;
-      if (status.positionMillis / 1000 >= currentEndTime) {
-        const currentStartTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
-        try {
+        // Scrubber ile belirlenen son zamanı hesapla
+        const currentEndTime = (endPosition.value / SCRUBBER_WIDTH) * duration;
+        if (newTime >= currentEndTime) {
+          const currentStartTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
           videoRef.current?.setPositionAsync(currentStartTime * 1000);
-        } catch (e) {
-          console.log('Error setting position in playback update:', e);
+          setCurrentTime(currentStartTime);
+        } else {
+          setCurrentTime(newTime);
         }
+        setEnded(false);
+        setLastPlayPosition(newTime);
       }
       if (status.didJustFinish) {
+        setCurrentTime(0);
         setIsPlaying(false);
+        setEnded(true);
+        videoRef.current?.setPositionAsync(0);
       }
     } catch (e) {
       console.log('Error in handlePlaybackStatusUpdate:', e);
     }
   };
 
-  // Eski scrubber mantığı (Gesture vs.)
+  // Scrubber gesture ayarları
   const factor = 0.3;
+
   const startGesture = Gesture.Pan()
     .onStart(() => {
       if (isPlaying) {
         try {
           setTimeout(() => {
-            try {
-              videoRef.current?.pauseAsync();
-              runOnJS(setIsPlaying)(false);
-            } catch (e) {
-              console.log('Error pausing video on start gesture:', e);
-            }
+            videoRef.current?.pauseAsync();
+            runOnJS(setIsPlaying)(false);
           }, 10);
-        } catch (e) { }
+        } catch (e) {}
       }
     })
     .onUpdate((e) => {
@@ -179,13 +190,9 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         const finalTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
         runOnJS(setStartTimeState)(finalTime);
         setTimeout(() => {
-          try {
-            videoRef.current?.setPositionAsync(finalTime * 1000);
-          } catch (e) {
-            console.log('Error in start gesture onFinalize setPosition:', e);
-          }
+          videoRef.current?.setPositionAsync(finalTime * 1000);
         }, 50);
-      } catch (e) { }
+      } catch (e) {}
     });
 
   const endGesture = Gesture.Pan()
@@ -193,14 +200,10 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
       if (isPlaying) {
         try {
           setTimeout(() => {
-            try {
-              videoRef.current?.pauseAsync();
-              runOnJS(setIsPlaying)(false);
-            } catch (e) {
-              console.log('Error pausing video on end gesture start:', e);
-            }
+            videoRef.current?.pauseAsync();
+            runOnJS(setIsPlaying)(false);
           }, 10);
-        } catch (e) { }
+        } catch (e) {}
       }
     })
     .onUpdate((e) => {
@@ -236,11 +239,16 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   }));
 
   const togglePlayPause = async () => {
-    if (!selectedVideoUri) return;
+    if (!selectedVideoUri || !videoRef.current) return;
     try {
-      if (videoRef.current) {
-        if (isPlaying) {
-          await videoRef.current.pauseAsync();
+      if (isPlaying) {
+        await videoRef.current.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        if (ended) {
+          // Video bitmişse yeniden oynatmak için replayAsync kullan
+          await videoRef.current.replayAsync();
+          setEnded(false);
         } else {
           const currentStartTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
           const currentEndTime = (endPosition.value / SCRUBBER_WIDTH) * duration;
@@ -249,49 +257,57 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
           }
           await videoRef.current.playAsync();
         }
-        setIsPlaying(!isPlaying);
+        setIsPlaying(true);
       }
     } catch (e) {
       console.log('Error in togglePlayPause:', e);
     }
   };
 
-  const { trimVideo, isTrimming } = useVideoProcessing();
-
   // Trim işlemi
-const handleTrimVideo = async () => {
-  if (!selectedVideoUri) return;
-  try {
+  const handleTrimVideo = async () => {
+    if (!selectedVideoUri) return;
+    try {
       const startTimeVal = (startPosition.value / SCRUBBER_WIDTH) * duration;
       const endTimeVal = (endPosition.value / SCRUBBER_WIDTH) * duration;
       const trimDuration = endTimeVal - startTimeVal;
 
-      // Video kırpma işlemini başlat
       const processedUri = await trimVideo({
-          sourceUri: selectedVideoUri,
-          startTime: startTimeVal,
-          duration: trimDuration
+        sourceUri: selectedVideoUri,
+        startTime: startTimeVal,
+        duration: trimDuration,
       });
 
-      // Kırpılan videoyu göster ve durumu güncelle
+      // Yeni videoyu ayarla ve süreyi güncelle
       setSelectedVideoUri(processedUri);
-      setDuration(trimDuration);  // Burada, videonun yeni süresini güncelliyoruz.
+      setDuration(trimDuration);
 
-      // Scrubber'ı sıfırla
+      // Video oynatma bilgilerini sıfırla
+      setCurrentTime(0);
+      setStartTimeState(0);
+      setEndTimeState(trimDuration);
       startPosition.value = 0;
       endPosition.value = SCRUBBER_WIDTH;
-      setStartTimeState(0);
-      setEndTimeState(trimDuration);  // Yeni duration değeri ile güncelliyoruz.
+
+      // Video ref sıfırlanıyor
+      if (videoRef.current) {
+        await videoRef.current.unloadAsync();
+        await videoRef.current.loadAsync({ uri: processedUri }, {}, false);
+      }
 
       Alert.alert('Başarılı', 'Video seçilen aralığa göre kırpıldı');
-  } catch (e) {
-      console.error('handleTrimVideo hatası:', e);
-      Alert.alert('Hata', 'Video kırpılırken bir sorun oluştu');
-  }
-};
+    } catch (e: any) {
+      if (e.message === "Trim işlemi iptal edildi") {
+        console.log("Trim operation was cancelled by the user");
+        Alert.alert('İptal', 'Video kırpma iptal edildi');
+      } else {
+        console.error('handleTrimVideo hatası:', e);
+        Alert.alert('Hata', 'Video kırpılırken bir sorun oluştu');
+      }
+    }
+  };
 
-
-  // Günlüğüne kaydet
+  // Kaydet
   const handleSaveToJournal = () => {
     if (!selectedVideoUri) {
       Alert.alert('Hata', 'Lütfen bir video seçin');
@@ -301,10 +317,10 @@ const handleTrimVideo = async () => {
     navigation.navigate('MetadataForm', {
       videoUri: selectedVideoUri,
       startTime: 0,
-      duration: duration
+      duration: duration,
     });
 
-    // Video seçim ve kırpma ekranlarını temizle
+    // Ekranı sıfırla
     setSelectedVideoUri(null);
     startPosition.value = 0;
     endPosition.value = SCRUBBER_WIDTH;
@@ -315,7 +331,7 @@ const handleTrimVideo = async () => {
   const onScrubberLayout = () => {
     try {
       scrubberRef.current?.measure((x, y, w, h, pageX, pageY) => {
-        // Gerekirse layout bilgilerini güncelleyebilirsiniz.
+        // Layout bilgisi
       });
     } catch (e) {
       console.log('Error in onScrubberLayout:', e);
@@ -334,7 +350,6 @@ const handleTrimVideo = async () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <Header title="Video Kırp" subtitle="Videonu seç ve düzenle" />
 
-      {/* Dış container animasyonu */}
       <Animated.View style={styles.contentContainer} entering={FadeIn.delay(300)}>
         <Text style={[styles.instructions, { color: colors.text.secondary }]}>
           {selectedVideoUri
@@ -355,7 +370,7 @@ const handleTrimVideo = async () => {
         >
           {selectedVideoUri ? (
             <Video
-              ref={setVideoCallbackRef} // callback ref
+              ref={setVideoCallbackRef}
               source={{ uri: selectedVideoUri }}
               style={styles.video}
               resizeMode={ResizeMode.CONTAIN}
@@ -393,16 +408,12 @@ const handleTrimVideo = async () => {
             <View style={[styles.timeline, { backgroundColor: '#fff' }]}>
               <Animated.View style={[styles.progress, { backgroundColor: '#000' }, progressStyle]} />
               <GestureDetector gesture={startGesture}>
-                <Animated.View
-                  style={[styles.handle, { backgroundColor: '#000' }, startHandleStyle]}
-                >
+                <Animated.View style={[styles.handle, { backgroundColor: '#000' }, startHandleStyle]}>
                   <View style={styles.handleBar} />
                 </Animated.View>
               </GestureDetector>
               <GestureDetector gesture={endGesture}>
-                <Animated.View
-                  style={[styles.handle, { backgroundColor: '#000' }, endHandleStyle]}
-                >
+                <Animated.View style={[styles.handle, { backgroundColor: '#000' }, endHandleStyle]}>
                   <View style={styles.handleBar} />
                 </Animated.View>
               </GestureDetector>
@@ -464,14 +475,34 @@ const handleTrimVideo = async () => {
         onClose={() => setModalVisible(false)}
         onVideoSelect={handleVideoSelect}
       />
+
+      {/* Trim işlemi devam ederken ProcessingModal göster */}
+      <ProcessingModal
+        visible={isTrimming}
+        onRequestClose={() => {
+          if (typeof cancelTrim === 'function') {
+            cancelTrim();
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  contentContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  instructions: { fontSize: 16, textAlign: 'center', marginBottom: 32, opacity: 0.8 },
+  contentContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  instructions: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    opacity: 0.8,
+  },
   box: {
     width: BOX_WIDTH,
     height: BOX_WIDTH / (16 / 9),
@@ -498,7 +529,12 @@ const styles = StyleSheet.create({
   navText: { fontSize: 14, marginTop: 8, textAlign: 'center' },
   video: { width: '100%', height: '100%' },
   scrubberContainer: { marginTop: 16 },
-  timeContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, width: '100%' },
+  timeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    width: '100%',
+  },
   timeText: { fontSize: 12, fontWeight: '500' },
   timeline: { height: 4, borderRadius: 2, width: '100%', backgroundColor: '#E5E5E5' },
   progress: { height: '100%', borderRadius: 2, position: 'absolute' },

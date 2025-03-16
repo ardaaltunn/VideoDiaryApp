@@ -1,48 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Dimensions,
-  ScrollView,
-} from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedScrollHandler,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { useTheme } from '../../theme/ThemeProvider';
+import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
+
 import { VideoAppBar } from './components/VideoAppBar';
 import { VideoControls } from './components/VideoControls';
 import { VideoDetailCard } from './components/VideoDetailCard';
 import { EditVideoModal } from './EditVideoModal';
-import { useTheme } from '../../theme/ThemeProvider';
-import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 const { width } = Dimensions.get('window');
 const VIDEO_HEIGHT = (width * 9) / 16;
 
-interface VideoPlayerProps {
-  id: string; // Video ID'si
+// VideoPlayer'ın beklediği props tipini tanımlıyoruz:
+export interface VideoPlayerProps {
+  id: string;
   uri: string;
   title: string;
   description: string;
+  duration: number;
+  date?: string;
   onBack: () => void;
 }
 
-export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayerProps) {
+// VideoPlayer bileşeni, props olarak aldığı değerleri kullanarak render edilecek:
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({
+  id,
+  uri,
+  title,
+  description,
+  duration,
+  date,
+  onBack,
+}) => {
   const { colors } = useTheme();
-  const videoRef = React.useRef<Video | null>(null);
+  const videoRef = useRef<Video | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Yerel state: düzenlenmiş başlık ve açıklama
   const [localTitle, setLocalTitle] = useState(title);
   const [localDescription, setLocalDescription] = useState(description);
-  
   const [editVisible, setEditVisible] = useState(false);
+
   const { editVideo } = useVideoProcessing();
 
   const scrollY = useSharedValue(0);
@@ -52,18 +58,17 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
   });
 
   const togglePlayPause = async () => {
-    if (videoRef.current) {
-      try {
-        if (isPlaying) {
-          await videoRef.current.pauseAsync();
-        } else {
-          await videoRef.current.playAsync();
-        }
-        setIsPlaying(!isPlaying);
-      } catch (err) {
-        console.error('Error toggling video playback:', err);
-        setError('Video oynatma hatası');
+    if (!videoRef.current) return;
+    try {
+      if (isPlaying) {
+        await videoRef.current.pauseAsync();
+      } else {
+        await videoRef.current.playAsync();
       }
+      setIsPlaying(!isPlaying);
+    } catch (err) {
+      console.error('Error toggling video playback:', err);
+      setError('Video oynatma hatası');
     }
   };
 
@@ -71,7 +76,7 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
     if (status.isLoaded) {
       setIsPlaying(status.isPlaying);
       setCurrentTime(status.positionMillis || 0);
-      setDuration(status.durationMillis || 0);
+      setVideoDuration(status.durationMillis || 0);
     } else if (status.error) {
       console.error('Video playback error:', status.error);
       setError('Video yüklenirken hata oluştu');
@@ -85,7 +90,6 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
   const handleSaveEdit = async (newTitle: string, newDesc: string) => {
     try {
       await editVideo({ id, newTitle, newDescription: newDesc });
-      // Yerel state güncellemesi:
       setLocalTitle(newTitle);
       setLocalDescription(newDesc);
       setEditVisible(false);
@@ -120,7 +124,7 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
         <VideoControls
           isPlaying={isPlaying}
           currentTime={currentTime}
-          duration={duration}
+          duration={videoDuration}
           onPlayPause={togglePlayPause}
         />
       </View>
@@ -135,11 +139,11 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
         <VideoDetailCard
           title={localTitle || 'Video'}
           description={localDescription || 'Açıklama yok'}
-          duration={duration}
+          duration={videoDuration}
+          date={date}
         />
       </AnimatedScrollView>
 
-      {/* Düzenleme Modalı */}
       <EditVideoModal
         visible={editVisible}
         onClose={() => setEditVisible(false)}
@@ -149,7 +153,7 @@ export function VideoPlayer({ id, uri, title, description, onBack }: VideoPlayer
       />
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {

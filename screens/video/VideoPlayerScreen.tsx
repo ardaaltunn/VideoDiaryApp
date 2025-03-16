@@ -6,19 +6,17 @@ import { VideoPlayer } from '../../components/video/VideoPlayer';
 type VideoPlayerScreenProps = NativeStackScreenProps<RootStackParamList, 'VideoPlayer'>;
 
 export function VideoPlayerScreen({ route, navigation }: VideoPlayerScreenProps) {
-  const { id, uri, title, description } = route.params;
+  // Tüm gerekli parametreleri alıyoruz:
+  const { id, uri, title, description, duration, date } = route.params;
 
   // Ekran açıldığında tabBar'ı gizle, ekrandan çıkarken geri getir
   useEffect(() => {
-    // TabNavigator'ın navigation objesine erişiyoruz
     const parent = navigation.getParent();
 
-    // Tab bar'ı gizle
     parent?.setOptions({
       tabBarStyle: { display: 'none' },
     });
 
-    // Cleanup: Ekrandan çıkarken tab bar'ı geri getir
     return () => {
       parent?.setOptions({
         tabBarStyle: undefined,
@@ -32,6 +30,8 @@ export function VideoPlayerScreen({ route, navigation }: VideoPlayerScreenProps)
       uri={uri}
       title={title}
       description={description}
+      duration={duration}
+      date={date}
       onBack={() => navigation.goBack()}
     />
   );
