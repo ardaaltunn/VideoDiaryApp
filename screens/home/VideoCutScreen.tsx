@@ -8,7 +8,6 @@ import { Header } from '../../components/home/components';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { Video, ResizeMode, AVPlaybackStatus, AVPlaybackStatusSuccess } from 'expo-av';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CutStackParamList } from '../../navigation/stacks/CutStack';
 import { useVideoProcessing } from '../../app/hooks/useVideoProcessing';
@@ -50,16 +49,20 @@ function hasNaturalSize(
 
 export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   const { colors } = useTheme();
+
+  // Video’nun tam olarak yüklenip yüklenmediğini takip etmek için
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
   const [isModalVisible, setModalVisible] = useState(false);
+  // Video URI’si, ekran baştan mount edildiğinde route.params üzerinden ayarlanır.
   const [selectedVideoUri, setSelectedVideoUri] = useState<string | null>(
     route.params?.uri || null
   );
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [ended, setEnded] = useState(false); // Video bitti mi?
+  const [ended, setEnded] = useState(false);
 
-  // Video ref (callback ref ile)
   const videoRef = useRef<Video | null>(null);
   const setVideoCallbackRef = (instance: Video | null) => {
     videoRef.current = instance;
@@ -68,19 +71,15 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   const scrubberRef = useRef<View>(null);
   const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
 
-  // Görünür zaman değerleri
   const [startTimeState, setStartTimeState] = useState(0);
   const [endTimeState, setEndTimeState] = useState(0);
   const [lastPlayPosition, setLastPlayPosition] = useState(0);
 
-  // Reanimated shared values
   const startPosition = useSharedValue(0);
   const endPosition = useSharedValue(SCRUBBER_WIDTH);
 
-  // useVideoProcessing hook
-  const { trimVideo, isTrimming, cancelTrim } = useVideoProcessing();
+  const { trimVideo: trimFn, isTrimming, cancelTrim } = useVideoProcessing();
 
-  // Route üzerinden gelen video URI
   useEffect(() => {
     if (route.params?.uri) {
       setSelectedVideoUri(route.params.uri);
@@ -89,11 +88,19 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
 
   useEffect(() => {
     if (selectedVideoUri) {
+      // Yeni video seçildiğinde video yüklenene kadar false yapalım
+      setIsVideoLoaded(false);
       setCurrentTime(0);
       setEnded(false);
       startPosition.value = 0;
       endPosition.value = SCRUBBER_WIDTH;
-      videoRef.current?.setPositionAsync(0);
+      setStartTimeState(0);
+      setEndTimeState(0);
+      try {
+        videoRef.current?.setPositionAsync(0);
+      } catch (e) {
+        console.log('Yeni video setPositionAsync hatası:', e);
+      }
     }
   }, [selectedVideoUri]);
 
@@ -103,15 +110,17 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Eski video durumu kaldırıp, yeni video seçildiğinde ekranı tamamen yeniden yüklemek için navigation.replace kullanıyoruz.
   const handleVideoSelect = (uri: string) => {
-    console.log('Video seçildi:', uri);
-    setSelectedVideoUri(uri);
-    setModalVisible(false);
+    console.log('Yeni video seçildi:', uri);
+    // navigation.replace ile VideoCutScreen'i yeni parametre ile yeniden mount ediyoruz.
+    navigation.replace('VideoCut', { uri });
   };
 
   const handleVideoLoad = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
     try {
+      setIsVideoLoaded(true);
       if (hasNaturalSize(status)) {
         const { width: vidW, height: vidH } = status.naturalSize;
         setVideoAspectRatio(vidW / vidH);
@@ -123,9 +132,10 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         startPosition.value = 0;
         endPosition.value = SCRUBBER_WIDTH;
       }
-      // Trim sonrası baştan başlat
       setCurrentTime(0);
-      videoRef.current?.setPositionAsync(0);
+      videoRef.current?.setPositionAsync(0).catch((err) => {
+        console.log('onLoad setPositionAsync hatası:', err);
+      });
     } catch (e) {
       console.log('Error in handleVideoLoad:', e);
     }
@@ -136,11 +146,12 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
     try {
       const newTime = status.positionMillis / 1000;
       if (status.isPlaying) {
-        // Scrubber ile belirlenen son zamanı hesapla
         const currentEndTime = (endPosition.value / SCRUBBER_WIDTH) * duration;
         if (newTime >= currentEndTime) {
           const currentStartTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
-          videoRef.current?.setPositionAsync(currentStartTime * 1000);
+          videoRef.current
+            ?.setPositionAsync(currentStartTime * 1000)
+            .catch((err) => console.log('PlaybackUpdate setPositionAsync hatası:', err));
           setCurrentTime(currentStartTime);
         } else {
           setCurrentTime(newTime);
@@ -152,70 +163,72 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         setCurrentTime(0);
         setIsPlaying(false);
         setEnded(true);
-        videoRef.current?.setPositionAsync(0);
+        videoRef.current?.setPositionAsync(0).catch((err) =>
+          console.log('PlaybackUpdate setPositionAsync finish hatası:', err)
+        );
       }
     } catch (e) {
       console.log('Error in handlePlaybackStatusUpdate:', e);
     }
   };
 
-  // Scrubber gesture ayarları
   const factor = 0.3;
 
   const startGesture = Gesture.Pan()
     .onStart(() => {
       if (isPlaying) {
         try {
-          setTimeout(() => {
-            videoRef.current?.pauseAsync();
-            runOnJS(setIsPlaying)(false);
-          }, 10);
-        } catch (e) {}
+          videoRef.current?.pauseAsync();
+          runOnJS(setIsPlaying)(false);
+        } catch (e) {
+        }
       }
     })
     .onUpdate((e) => {
       try {
-        const newPosition = Math.max(
+        const newPos = Math.max(
           0,
           Math.min(e.translationX * factor + startPosition.value, endPosition.value - HANDLE_WIDTH)
         );
-        runOnJS(setStartTimeState)((newPosition / SCRUBBER_WIDTH) * duration);
-        startPosition.value = newPosition;
+        runOnJS(setStartTimeState)((newPos / SCRUBBER_WIDTH) * duration);
+        startPosition.value = newPos;
       } catch (error) {
-        console.log('Error in start gesture onUpdate:', error);
+        console.log('startGesture onUpdate hatası:', error);
       }
     })
     .onFinalize(() => {
       try {
         const finalTime = (startPosition.value / SCRUBBER_WIDTH) * duration;
         runOnJS(setStartTimeState)(finalTime);
-        setTimeout(() => {
-          videoRef.current?.setPositionAsync(finalTime * 1000);
-        }, 50);
-      } catch (e) {}
+        if (isVideoLoaded && videoRef.current) {
+          videoRef.current
+            .setPositionAsync(finalTime * 1000)
+            .catch((err) => console.log('startGesture setPositionAsync hatası:', err));
+        }
+      } catch (e) {
+      }
     });
 
   const endGesture = Gesture.Pan()
     .onStart(() => {
       if (isPlaying) {
         try {
-          setTimeout(() => {
-            videoRef.current?.pauseAsync();
-            runOnJS(setIsPlaying)(false);
-          }, 10);
-        } catch (e) {}
+          videoRef.current?.pauseAsync();
+          runOnJS(setIsPlaying)(false);
+        } catch (e) {
+        }
       }
     })
     .onUpdate((e) => {
       try {
-        const newPosition = Math.max(
+        const newPos = Math.max(
           startPosition.value + HANDLE_WIDTH,
           Math.min(e.translationX * factor + endPosition.value, SCRUBBER_WIDTH)
         );
-        runOnJS(setEndTimeState)((newPosition / SCRUBBER_WIDTH) * duration);
-        endPosition.value = newPosition;
+        runOnJS(setEndTimeState)((newPos / SCRUBBER_WIDTH) * duration);
+        endPosition.value = newPos;
       } catch (error) {
-        console.log('Error in end gesture onUpdate:', error);
+        console.log('endGesture onUpdate hatası:', error);
       }
     })
     .onFinalize(() => {
@@ -223,7 +236,7 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         const finalTime = (endPosition.value / SCRUBBER_WIDTH) * duration;
         runOnJS(setEndTimeState)(finalTime);
       } catch (e) {
-        console.log('Error in end gesture onFinalize:', e);
+        console.log('endGesture onFinalize hatası:', e);
       }
     });
 
@@ -239,6 +252,10 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   }));
 
   const togglePlayPause = async () => {
+    if (!isVideoLoaded) {
+      console.log('Video henüz yüklenmedi, oynatamıyorum.');
+      return;
+    }
     if (!selectedVideoUri || !videoRef.current) return;
     try {
       if (isPlaying) {
@@ -246,7 +263,6 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         setIsPlaying(false);
       } else {
         if (ended) {
-          // Video bitmişse yeniden oynatmak için replayAsync kullan
           await videoRef.current.replayAsync();
           setEnded(false);
         } else {
@@ -264,41 +280,33 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
     }
   };
 
-  // Trim işlemi
   const handleTrimVideo = async () => {
-    if (!selectedVideoUri) return;
+    // Video yüklü değilse ya da seçili video yoksa işlem yapma
+    if (!selectedVideoUri || !isVideoLoaded) {
+      console.log("Video henüz yüklenmedi veya yok, trim yapılamaz.");
+      return;
+    }
+  
     try {
       const startTimeVal = (startPosition.value / SCRUBBER_WIDTH) * duration;
       const endTimeVal = (endPosition.value / SCRUBBER_WIDTH) * duration;
       const trimDuration = endTimeVal - startTimeVal;
-
-      const processedUri = await trimVideo({
+  
+      // Videoyu kırp
+      const processedUri = await trimFn({
         sourceUri: selectedVideoUri,
         startTime: startTimeVal,
         duration: trimDuration,
       });
-
-      // Yeni videoyu ayarla ve süreyi güncelle
-      setSelectedVideoUri(processedUri);
-      setDuration(trimDuration);
-
-      // Video oynatma bilgilerini sıfırla
-      setCurrentTime(0);
-      setStartTimeState(0);
-      setEndTimeState(trimDuration);
-      startPosition.value = 0;
-      endPosition.value = SCRUBBER_WIDTH;
-
-      // Video ref sıfırlanıyor
-      if (videoRef.current) {
-        await videoRef.current.unloadAsync();
-        await videoRef.current.loadAsync({ uri: processedUri }, {}, false);
-      }
-
-      Alert.alert('Başarılı', 'Video seçilen aralığa göre kırpıldı');
+  
+      // Trim tamamlanınca, ekranda yeni URI ile yeniden mount
+      navigation.replace('VideoCut', { uri: processedUri });
+  
+      // Böylece, ekrandaki tüm state sıfırlanacak ve onLoad tetiklenerek
+      // "Cannot complete operation..." hatası ortadan kalkacak
     } catch (e: any) {
-      if (e.message === "Trim işlemi iptal edildi") {
-        console.log("Trim operation was cancelled by the user");
+      if (e.message === 'Trim işlemi iptal edildi') {
+        console.log('Trim operation was cancelled by the user');
         Alert.alert('İptal', 'Video kırpma iptal edildi');
       } else {
         console.error('handleTrimVideo hatası:', e);
@@ -306,32 +314,38 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
       }
     }
   };
+  
 
-  // Kaydet
   const handleSaveToJournal = () => {
+    if (!isVideoLoaded) {
+      console.log('Video henüz yüklenmedi, kaydetme yapılamaz.');
+      return;
+    }
     if (!selectedVideoUri) {
       Alert.alert('Hata', 'Lütfen bir video seçin');
       return;
     }
-
     navigation.navigate('MetadataForm', {
       videoUri: selectedVideoUri,
       startTime: 0,
       duration: duration,
     });
-
-    // Ekranı sıfırla
     setSelectedVideoUri(null);
-    startPosition.value = 0;
-    endPosition.value = SCRUBBER_WIDTH;
+    setIsPlaying(false);
+    setEnded(false);
+    setDuration(0);
+    setCurrentTime(0);
     setStartTimeState(0);
     setEndTimeState(0);
+    setLastPlayPosition(0);
+    startPosition.value = 0;
+    endPosition.value = SCRUBBER_WIDTH;
   };
 
   const onScrubberLayout = () => {
     try {
       scrubberRef.current?.measure((x, y, w, h, pageX, pageY) => {
-        // Layout bilgisi
+        // Layout bilgisi alınabilir
       });
     } catch (e) {
       console.log('Error in onScrubberLayout:', e);
@@ -349,14 +363,12 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <Header title="Video Kırp" subtitle="Videonu seç ve düzenle" />
-
       <Animated.View style={styles.contentContainer} entering={FadeIn.delay(300)}>
         <Text style={[styles.instructions, { color: colors.text.secondary }]}>
           {selectedVideoUri
             ? 'Seçilen videoyu düzenlemek için aşağıdaki seçenekleri kullan'
             : 'Düzenlemek istediğin videoyu seçmek için aşağıdaki alana dokun'}
         </Text>
-
         <Pressable
           style={[
             styles.box,
@@ -370,6 +382,7 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
         >
           {selectedVideoUri ? (
             <Video
+              key={selectedVideoUri}
               ref={setVideoCallbackRef}
               source={{ uri: selectedVideoUri }}
               style={styles.video}
@@ -381,13 +394,10 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
           ) : (
             <View style={styles.iconContainer}>
               <Ionicons name="videocam" size={48} color={colors.text.primary} />
-              <Text style={[styles.selectText, { color: colors.text.primary }]}>
-                Video Seç
-              </Text>
+              <Text style={[styles.selectText, { color: colors.text.primary }]}>Video Seç</Text>
             </View>
           )}
         </Pressable>
-
         {selectedVideoUri && (
           <View
             ref={scrubberRef}
@@ -395,15 +405,9 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
             onLayout={onScrubberLayout}
           >
             <View style={styles.timeContainer}>
-              <Text style={[styles.timeText, { color: colors.text.primary }]}>
-                {formatTime(startTimeState)}
-              </Text>
-              <Text style={[styles.timeText, { color: colors.text.primary }]}>
-                {formatTime(currentTime)}
-              </Text>
-              <Text style={[styles.timeText, { color: colors.text.primary }]}>
-                {formatTime(endTimeState)}
-              </Text>
+              <Text style={[styles.timeText, { color: colors.text.primary }]}>{formatTime(startTimeState)}</Text>
+              <Text style={[styles.timeText, { color: colors.text.primary }]}>{formatTime(currentTime)}</Text>
+              <Text style={[styles.timeText, { color: colors.text.primary }]}>{formatTime(endTimeState)}</Text>
             </View>
             <View style={[styles.timeline, { backgroundColor: '#fff' }]}>
               <Animated.View style={[styles.progress, { backgroundColor: '#000' }, progressStyle]} />
@@ -420,63 +424,65 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
             </View>
           </View>
         )}
-
         <View style={styles.bottomNavigation}>
-          <Pressable style={styles.navItem} onPress={handleTrimVideo} disabled={!selectedVideoUri}>
+          <Pressable
+            style={styles.navItem}
+            onPress={handleTrimVideo}
+            disabled={!selectedVideoUri || !isVideoLoaded}
+          >
             <Ionicons name="cut-outline" size={24} color={colors.text.primary} />
             <Text style={[styles.navText, { color: colors.text.primary }]}>Videoları Kırp</Text>
           </Pressable>
-
-          <Pressable style={styles.navItem} onPress={togglePlayPause} disabled={!selectedVideoUri}>
+          <Pressable
+            style={styles.navItem}
+            onPress={togglePlayPause}
+            disabled={!selectedVideoUri || !isVideoLoaded}
+          >
             <Ionicons
               name={isPlaying ? 'pause-outline' : 'play-outline'}
               size={24}
-              color={selectedVideoUri ? colors.text.primary : colors.text.secondary}
+              color={selectedVideoUri && isVideoLoaded ? colors.text.primary : colors.text.secondary}
             />
             <Text
               style={[
                 styles.navText,
-                { color: selectedVideoUri ? colors.text.primary : colors.text.secondary },
+                { color: selectedVideoUri && isVideoLoaded ? colors.text.primary : colors.text.secondary },
               ]}
             >
               {isPlaying ? 'Durdur' : 'Anında Önizle'}
             </Text>
           </Pressable>
-
-          <Pressable style={styles.navItem} onPress={handleSaveToJournal} disabled={!selectedVideoUri}>
+          <Pressable
+            style={styles.navItem}
+            onPress={handleSaveToJournal}
+            disabled={!selectedVideoUri || !isVideoLoaded}
+          >
             <Ionicons
               name="save-outline"
               size={24}
-              color={selectedVideoUri ? colors.text.primary : colors.text.secondary}
+              color={selectedVideoUri && isVideoLoaded ? colors.text.primary : colors.text.secondary}
             />
             <Text
               style={[
                 styles.navText,
-                { color: selectedVideoUri ? colors.text.primary : colors.text.secondary },
+                { color: selectedVideoUri && isVideoLoaded ? colors.text.primary : colors.text.secondary },
               ]}
             >
               Günlüğüne Kaydet
             </Text>
           </Pressable>
         </View>
-
         {selectedVideoUri && (
           <Pressable style={styles.newVideoButton} onPress={() => setModalVisible(true)}>
-            <Text style={[styles.newVideoText, { color: colors.text.secondary }]}>
-              Farklı Video Seç
-            </Text>
+            <Text style={[styles.newVideoText, { color: colors.text.secondary }]}>Farklı Video Seç</Text>
           </Pressable>
         )}
       </Animated.View>
-
-      {/* Video seçme modalı */}
       <VideoSelectModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
         onVideoSelect={handleVideoSelect}
       />
-
-      {/* Trim işlemi devam ederken ProcessingModal göster */}
       <ProcessingModal
         visible={isTrimming}
         onRequestClose={() => {
@@ -491,18 +497,8 @@ export function VideoCutScreen({ navigation, route }: VideoCutScreenProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  instructions: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    opacity: 0.8,
-  },
+  contentContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  instructions: { fontSize: 16, textAlign: 'center', marginBottom: 32, opacity: 0.8 },
   box: {
     width: BOX_WIDTH,
     height: BOX_WIDTH / (16 / 9),
@@ -518,37 +514,17 @@ const styles = StyleSheet.create({
   },
   iconContainer: { alignItems: 'center', justifyContent: 'center' },
   selectText: { fontSize: 18, fontWeight: '600', marginTop: 16 },
-  bottomNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 20,
-    marginTop: 48,
-  },
+  bottomNavigation: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20, marginTop: 48 },
   navItem: { alignItems: 'center', width: '30%' },
   navText: { fontSize: 14, marginTop: 8, textAlign: 'center' },
   video: { width: '100%', height: '100%' },
   scrubberContainer: { marginTop: 16 },
-  timeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    width: '100%',
-  },
+  timeContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, width: '100%' },
   timeText: { fontSize: 12, fontWeight: '500' },
   timeline: { height: 4, borderRadius: 2, width: '100%', backgroundColor: '#E5E5E5' },
   progress: { height: '100%', borderRadius: 2, position: 'absolute' },
-  handle: {
-    width: HANDLE_WIDTH,
-    height: HANDLE_WIDTH,
-    borderRadius: HANDLE_WIDTH / 2,
-    position: 'absolute',
-    top: -8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  handle: { width: HANDLE_WIDTH, height: HANDLE_WIDTH, borderRadius: HANDLE_WIDTH / 2, position: 'absolute', top: -8, justifyContent: 'center', alignItems: 'center' },
   handleBar: { width: 2, height: 12, backgroundColor: 'white', borderRadius: 1 },
-  videoContainer: { alignItems: 'center', width: '100%' },
   newVideoButton: { height: 40, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
   newVideoText: { fontSize: 14, fontWeight: '500' },
 });

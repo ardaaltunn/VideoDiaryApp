@@ -5,16 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d8563214-1166-430a-91e3-33d52805bd96" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/hooks/useVideoProcessing.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/hooks/useVideoProcessing.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/home/VideoList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/home/VideoList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/video/MetadataForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/MetadataForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/video/VideoPlayer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/VideoPlayer.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/video/components/VideoDetailCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/video/components/VideoDetailCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigation/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/navigation/types.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screens/home/VideoCutScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/home/VideoCutScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/video/MetadataFormScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/video/MetadataFormScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/video/VideoPlayerScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/video/VideoPlayerScreen.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
