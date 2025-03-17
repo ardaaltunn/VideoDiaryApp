@@ -173,6 +173,7 @@ VideoDiaryApp/
 ├─ tsconfig.json
 ├─ README.txt
 ├─ config.ts
+├─ VideoDiaryApp_Calisan_Video  # Uygulamanın çalışan videosu
 
 ---
 
@@ -304,6 +305,8 @@ export const API_URL = 'http://192.168.1.10:3000';
 
 şeklinde yazılmalıdır.Aksi halde istemci (mobil uygulama) sunucuya ulaşamadığı için Network request failed gibi hatalar alabilirsiniz.
 IP adresini bulmak için cmd açıp ipconfig yazarak kullandığınız IP adresini "IPv4 Address" kısmında görebilirsiniz. Bu adres genellikle "192.168.x.x" formatında olur. 
+
+Not: VideoDiaryApp_Calisan_Video dosyası, uygulamanın çalışan halinin videosudur. Dilerseniz onu da izleyebilirsiniz.
 ---
 11. Kullanım Senaryosu
 
@@ -348,6 +351,6 @@ Videonun kendisi, ad(başlık) ve açıklama görüntülenir.
 
 Kullanıcı isteğe bağlı olarak sağ üstte bulunan ikona bastığında EditVideoModal pop-up olarak açılır. Kullanıcı burada ad/açıklamayı güncelleyebilir.
 
-11. Sonuç
+12. Sonuç
 
 Bu dokümantasyon, VideoDiaryApp'in tüm teknik detaylarını ve işleyişini açıklamaktadır.Herhangi bir ek bilgi ihtiyacınız olursa, benimle iletişime geçebilirsiniz.
