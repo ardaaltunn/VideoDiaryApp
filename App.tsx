@@ -1,3 +1,11 @@
+/**
+ * VideoDiaryApp Ana Bileşeni
+ * Yazan: Arda Altun
+ * Tarih: 17/03/2025
+ * Bu uygulama, kullanıcıların günlük videolar kaydetmesine,
+ * düzenlemesine ve görüntülemesine olanak tanır.
+ */
+
 import React, { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NavigationContainer } from '@react-navigation/native';
@@ -16,12 +24,6 @@ const styles = StyleSheet.create({
   },
 });
 
-/**
- * Video Günlüğüm Uygulaması Ana Bileşeni
- * 
- * Bu uygulama, kullanıcıların günlük videolar kaydetmesine,
- * düzenlemesine ve görüntülemesine olanak tanır.
- */
 export default function App() {
   useEffect(() => {
     const init = async () => {

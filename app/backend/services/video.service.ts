@@ -1,8 +1,7 @@
 import { VideoItem, VideoProcessOptions } from '../types/video.types';
 import { videoDb } from '../db/database';
 import * as FileSystem from 'expo-file-system';
-
-const API_URL = 'http://192.168.1.108:3000'; // Geliştirme ortamı için
+import { API_URL } from '../../../config';
 
 export class VideoService {
     static async processVideo(

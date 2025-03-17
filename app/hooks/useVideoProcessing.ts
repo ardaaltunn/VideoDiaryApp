@@ -5,8 +5,8 @@ import { VideoProcessOptions } from '../backend/types/video.types';
 import * as FileSystem from 'expo-file-system';
 import { videoDb } from '../backend/db/database';
 import { useRef } from 'react';
+import { API_URL } from '../../config';
 
-const API_URL = 'http://192.168.1.108:3000'; // Geliştirme ortamı için
 
 export function useVideoProcessing() {
   const queryClient = useQueryClient();
